@@ -2,3 +2,13 @@
 .env
 .env.local
 .env.*
+# reference / no-code artifacts
+frontend_reference/
+
+# node
+node_modules/
+
+# env
+.env
+.env.local
+.env.*
