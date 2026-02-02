@@ -1,0 +1,9 @@
+# Ignore reference and development artifacts
+frontend_reference/
+.DS_Store
+*.log
+.env.local
+node_modules/
+
+# Only deploy the frontend
+!frontend/
