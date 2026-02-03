@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Plus, MoreHorizontal, Building2, CalendarIcon, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, MoreHorizontal, Building2, CalendarIcon, ChevronDown, ChevronUp, Search, X, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import Sidebar from "@/components/dashboard/Sidebar";
 import { cn } from "@/lib/utils";
 import { differenceInDays, format } from "date-fns";
@@ -50,6 +57,8 @@ const Applications = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showAllActive, setShowAllActive] = useState(false);
   const [showRejected, setShowRejected] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPosition, setSelectedPosition] = useState<string>("all");
 
   // Form state
   const [newCompany, setNewCompany] = useState("");
@@ -74,12 +83,33 @@ const Applications = () => {
     }
   };
 
-  // Separate active and rejected applications
-  const { activeApplications, rejectedApplications } = useMemo(() => {
-    const active = applications.filter(app => app.status !== "rejected");
-    const rejected = applications.filter(app => app.status === "rejected");
-    return { activeApplications: active, rejectedApplications: rejected };
+  // Get unique positions for filter
+  const positions = useMemo(() => {
+    const uniquePositions = [...new Set(applications.map((app) => app.position))];
+    return uniquePositions.filter((pos): pos is string => pos !== undefined && pos !== "");
   }, [applications]);
+
+  // Separate active and rejected applications with search and position filtering
+  const { activeApplications, rejectedApplications } = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = applications.filter(app => {
+      if (query && !app.company.toLowerCase().includes(query)) {
+        return false;
+      }
+      if (selectedPosition !== "all" && app.position !== selectedPosition) {
+        return false;
+      }
+      return true;
+    });
+    const active = filtered.filter(app => app.status !== "rejected");
+    const rejected = filtered.filter(app => app.status === "rejected");
+    return { activeApplications: active, rejectedApplications: rejected };
+  }, [applications, searchQuery, selectedPosition]);
+
+  const resetFilters = () => {
+    setSelectedPosition("all");
+    setSearchQuery("");
+  };
 
   // Determine which active applications to show (max 10, or all if expanded)
   const displayedActiveApplications = useMemo(() => {
@@ -260,6 +290,53 @@ const Applications = () => {
                 </Button>
               </DialogTrigger>
             </Dialog>
+          </div>
+
+          {/* Filter Section */}
+          <div className="bg-card rounded-lg border border-border p-4 mb-4">
+            <div className="flex items-center gap-3">
+              <Select value={selectedPosition} onValueChange={setSelectedPosition}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="직무 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">직무 선택</SelectItem>
+                  {positions.map((position) => (
+                    <SelectItem key={position} value={position}>
+                      {position}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetFilters}
+                className="flex items-center gap-2"
+              >
+                <Filter className="w-4 h-4" />
+                필터 초기화
+              </Button>
+
+              <div className="relative ml-auto">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="기업명 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9 w-[200px] h-9"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Application Cards */}

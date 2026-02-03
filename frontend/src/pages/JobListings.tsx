@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Trash2, MoreHorizontal, Pencil, CalendarIcon, ChevronDown, ChevronUp, Filter } from "lucide-react";
+import { Plus, Trash2, MoreHorizontal, Pencil, CalendarIcon, ChevronDown, ChevronUp, Filter, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -94,6 +94,7 @@ const JobListings = () => {
   // Filter states
   const [selectedPosition, setSelectedPosition] = useState<string>("all");
   const [selectedScale, setSelectedScale] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const COLLAPSED_ROWS = 15;
 
@@ -140,9 +141,13 @@ const JobListings = () => {
     return uniquePositions.filter((pos): pos is string => pos !== undefined && pos !== "");
   }, [listings]);
 
-  // Filter data based on selections
+  // Filter data based on selections and search query
   const filteredListings = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
     return listings.filter((item) => {
+      if (query && !item.company.toLowerCase().includes(query)) {
+        return false;
+      }
       if (selectedPosition !== "all" && item.position !== selectedPosition) {
         return false;
       }
@@ -151,11 +156,12 @@ const JobListings = () => {
       }
       return true;
     });
-  }, [listings, selectedPosition, selectedScale]);
+  }, [listings, selectedPosition, selectedScale, searchQuery]);
 
   const resetFilters = () => {
     setSelectedPosition("all");
     setSelectedScale("all");
+    setSearchQuery("");
   };
 
   const handleAddListing = async () => {
@@ -410,6 +416,24 @@ const JobListings = () => {
                 <Filter className="w-4 h-4" />
                 필터 초기화
               </Button>
+
+              <div className="relative ml-auto">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="기업명 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9 w-[200px] h-9"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
