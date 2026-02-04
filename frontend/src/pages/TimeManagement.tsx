@@ -32,11 +32,12 @@ import {
   type TimeLog,
 } from "@/lib/time-management";
 import { markAutoCheckRoutine } from "@/lib/daily-routines";
+import { useDashboardStore } from "@/stores/dashboardStore";
 import { toast } from "sonner";
 
 // Category options with pastel colors - sorted by Korean alphabetical order
 const CATEGORIES = [
-  { id: "personal_study", label: "개인공부", color: "bg-emerald-200" },
+  { id: "personal_study", label: "개인공부", color: "bg-green-200" },
   { id: "other", label: "기타", color: "bg-gray-200" },
   { id: "routine", label: "루틴", color: "bg-pink-200" },
   { id: "interview", label: "면접", color: "bg-purple-200" },
@@ -219,6 +220,7 @@ const TimeManagement = () => {
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       if (dateStr === todayStr) {
         await markAutoCheckRoutine(dateStr, "time_block");
+        await useDashboardStore.getState().refreshTodayRoutines();
       }
 
       toast.success("시간 기록이 추가되었습니다.");

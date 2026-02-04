@@ -30,6 +30,7 @@ interface DashboardState {
 
   // Actions
   preloadData: () => Promise<void>;
+  refreshTodayRoutines: () => Promise<void>;
   updateTodayRoutines: (routines: DailyRoutine[]) => void;
   addApplication: (app: Application) => void;
   updateApplications: (apps: Application[]) => void;
@@ -120,6 +121,17 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       console.error('Failed to preload dashboard data:', error);
       // Even on error, mark as ready to prevent infinite loading
       set({ isReady: true });
+    }
+  },
+
+  // Refresh today's routines from DB (called after auto-check from other pages)
+  refreshTodayRoutines: async () => {
+    try {
+      const todayStr = getTodayDateString();
+      const routines = await getRoutinesByDate(todayStr);
+      get().updateTodayRoutines(routines);
+    } catch (error) {
+      console.error('Failed to refresh today routines:', error);
     }
   },
 

@@ -93,16 +93,24 @@ const Dashboard = () => {
     // Do nothing - auto check items are controlled by activities
   };
 
-  // Helper function for comments
-  const getPercentageComment = (percentage: number): string => {
-    if (percentage <= 30) return "...뭐하세요?";
-    if (percentage <= 60) return "힘내세요";
-    return "고생했어요~";
-  };
-
   // Stats for each card (computed from store)
-  const todayFocusComment = getPercentageComment(todayFocusPercentage);
-  const weeklyAverageComment = getPercentageComment(weeklyAveragePercentage);
+  const todayFocusComment = todayFocusPercentage <= 30
+    ? "...뭐하세요?"
+    : todayFocusPercentage <= 70
+      ? "할 수 있어요!"
+      : "고생했어요~";
+
+  const weeklyAverageComment = weeklyAveragePercentage <= 30
+    ? "음...?"
+    : weeklyAveragePercentage <= 70
+      ? "할 수 있어요!"
+      : "고생했어요~";
+
+  const weeklyAppComment = weeklyApplicationStats.count === 0
+    ? "...뭐하세요?"
+    : weeklyApplicationStats.count === 1
+      ? "할 수 있어요!"
+      : "고생했어요~";
 
   // Get today's date for subtitle
   const today = new Date();
@@ -170,11 +178,12 @@ const Dashboard = () => {
                 />
                 <StatCard
                   title="이번 주 지원 완료"
-                  value={weeklyApplicationStats.percentage}
-                  unit="%"
+                  value={weeklyApplicationStats.count}
+                  unit="개"
                   subtitle={weeklyApplicationStats.subtitle}
+                  comment={weeklyAppComment}
                   variant="progress"
-                  percentage={weeklyApplicationStats.percentage}
+                  percentage={weeklyApplicationStats.count === 0 ? 0 : weeklyApplicationStats.count === 1 ? 50 : 100}
                 />
               </>
             )}

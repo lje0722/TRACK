@@ -21,9 +21,9 @@ const COLOR_CLASS_MAP = {
     circle: "bg-amber-400/10",
   },
   green: {
-    border: "border-emerald-400/30",
-    text: "text-emerald-400",
-    circle: "bg-emerald-400/10",
+    border: "border-green-500/30",
+    text: "text-green-500",
+    circle: "bg-green-500/10",
   },
   warning: {
     border: "border-[#E91E63]/20",
@@ -52,8 +52,8 @@ const StatCard = ({
   // Calculate color level based ONLY on numeric percentage (0-100)
   const getColorLevel = (): "red" | "yellow" | "green" => {
     if (percentage <= 30) return "red";
-    if (percentage <= 60) return "yellow";
-    return "green"; // 61-100
+    if (percentage <= 70) return "yellow";
+    return "green"; // 71-100
   };
 
   const colorLevel = getColorLevel();

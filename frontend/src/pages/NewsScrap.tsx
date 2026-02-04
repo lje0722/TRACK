@@ -28,6 +28,7 @@ import {
 } from "@/lib/news-scraps";
 import { useJobContext } from "@/contexts/JobContext";
 import { markAutoCheckRoutine } from "@/lib/daily-routines";
+import { useDashboardStore } from "@/stores/dashboardStore";
 import { toast } from "sonner";
 
 const INDUSTRY_OPTIONS = [
@@ -177,6 +178,7 @@ const NewsScrap = () => {
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       await markAutoCheckRoutine(todayStr, "news_scrap");
+      await useDashboardStore.getState().refreshTodayRoutines();
 
       toast.success("뉴스 스크랩이 저장되었습니다.");
       resetForm();

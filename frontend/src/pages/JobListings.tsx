@@ -61,6 +61,7 @@ import {
 } from "@/lib/job-listings";
 import { createApplication } from "@/lib/applications";
 import { markAutoCheckRoutine } from "@/lib/daily-routines";
+import { useDashboardStore } from "@/stores/dashboardStore";
 import { toast } from "sonner";
 
 const INDUSTRY_OPTIONS = [
@@ -188,6 +189,7 @@ const JobListings = () => {
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       await markAutoCheckRoutine(todayStr, "job_listing");
+      await useDashboardStore.getState().refreshTodayRoutines();
 
       toast.success("채용 공고가 추가되었습니다.");
       resetForm();

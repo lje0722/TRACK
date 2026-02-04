@@ -6,9 +6,9 @@ export default {
   prefix: "",
   safelist: [
     // StatCard progress colors - ensure these are always generated
-    "text-emerald-400",
-    "border-emerald-400/30",
-    "bg-emerald-400/10",
+    "text-green-500",
+    "border-green-500/30",
+    "bg-green-500/10",
     "text-rose-400",
     "border-rose-400/30",
     "bg-rose-400/10",
