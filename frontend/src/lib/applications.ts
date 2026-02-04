@@ -9,7 +9,7 @@ export interface Application {
   progress: number;
   deadline: string | null;
   applied_at: string;
-  status: "active" | "reviewing" | "rejected" | "accepted";
+  status: "active" | "reviewing" | "인적성" | "AI면접" | "1차면접" | "2차면접" | "rejected" | "accepted";
   url?: string;
   created_at: string;
   updated_at: string;
@@ -22,7 +22,7 @@ export interface CreateApplicationInput {
   progress: number;
   deadline?: Date | null;
   applied_at?: Date;
-  status?: "active" | "reviewing" | "rejected" | "accepted";
+  status?: "active" | "reviewing" | "인적성" | "AI면접" | "1차면접" | "2차면접" | "rejected" | "accepted";
   url?: string;
 }
 
@@ -32,7 +32,7 @@ export interface UpdateApplicationInput {
   stage?: string;
   progress?: number;
   deadline?: Date | null;
-  status?: "active" | "reviewing" | "rejected" | "accepted";
+  status?: "active" | "reviewing" | "인적성" | "AI면접" | "1차면접" | "2차면접" | "rejected" | "accepted";
   url?: string;
 }
 

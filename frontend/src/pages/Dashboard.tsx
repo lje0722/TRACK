@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import StatCard from "@/components/dashboard/StatCard";
 import DashboardCalendar from "@/components/dashboard/DashboardCalendar";
+import Sticker from "@/components/dashboard/Sticker";
 import RoutinePanel, { RoutineItem } from "@/components/dashboard/RoutinePanel";
 import {
   getRoutinesByDate,
@@ -179,9 +180,8 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Calendar and Routine Panel */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <DashboardCalendar />
+          {/* RoutinePanel, Sticker, and Calendar */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <RoutinePanel
               selfCheckItems={selfCheckItems}
               autoCheckItems={autoCheckItems}
@@ -189,6 +189,8 @@ const Dashboard = () => {
               onAutoCheckToggle={toggleAutoCheck}
               disableAutoCheck={true}
             />
+            <Sticker />
+            <DashboardCalendar />
           </div>
         </main>
       </div>

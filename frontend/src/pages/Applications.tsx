@@ -56,6 +56,7 @@ const Applications = () => {
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showAllActive, setShowAllActive] = useState(false);
+  const [showAccepted, setShowAccepted] = useState(false);
   const [showRejected, setShowRejected] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPosition, setSelectedPosition] = useState<string>("all");
@@ -64,6 +65,9 @@ const Applications = () => {
   const [newCompany, setNewCompany] = useState("");
   const [newPosition, setNewPosition] = useState("");
   const [newDeadline, setNewDeadline] = useState<Date | undefined>(undefined);
+
+  // Pending stage for D-day selection (which stage is selected before picking a date)
+  const [pendingStage, setPendingStage] = useState<{ appId: string; stage: Application["status"] } | null>(null);
 
   // Load applications on mount
   useEffect(() => {
@@ -89,8 +93,8 @@ const Applications = () => {
     return uniquePositions.filter((pos): pos is string => pos !== undefined && pos !== "");
   }, [applications]);
 
-  // Separate active and rejected applications with search and position filtering
-  const { activeApplications, rejectedApplications } = useMemo(() => {
+  // Separate active, accepted, and rejected applications with search and position filtering
+  const { activeApplications, acceptedApplications, rejectedApplications } = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
     const filtered = applications.filter(app => {
       if (query && !app.company.toLowerCase().includes(query)) {
@@ -101,9 +105,10 @@ const Applications = () => {
       }
       return true;
     });
-    const active = filtered.filter(app => app.status !== "rejected");
+    const active = filtered.filter(app => app.status !== "rejected" && app.status !== "accepted");
+    const accepted = filtered.filter(app => app.status === "accepted");
     const rejected = filtered.filter(app => app.status === "rejected");
-    return { activeApplications: active, rejectedApplications: rejected };
+    return { activeApplications: active, acceptedApplications: accepted, rejectedApplications: rejected };
   }, [applications, searchQuery, selectedPosition]);
 
   const resetFilters = () => {
@@ -168,7 +173,9 @@ const Applications = () => {
   const handleProgressUpdate = async (id: string, progress: number, stage: string) => {
     try {
       setLoading(true);
-      await updateApplication(id, { progress, stage, status: "active" });
+      // 최종합격이면 status를 "accepted"로 변경
+      const status = stage === "최종합격" ? "accepted" : "active";
+      await updateApplication(id, { progress, stage, status });
       await loadApplications();
       toast.success("진행 상태가 업데이트되었습니다.");
     } catch (error: any) {
@@ -179,14 +186,14 @@ const Applications = () => {
     }
   };
 
-  const handleDeadlineUpdate = async (id: string, deadline: Date | null, isReviewing: boolean) => {
+  const handleDeadlineUpdate = async (id: string, deadline: Date) => {
     try {
       setLoading(true);
-      await updateApplication(id, {
-        deadline,
-        status: isReviewing ? "reviewing" : "active",
-      });
+      // Use pending stage if selected, otherwise just set deadline with active status
+      const status = pendingStage?.appId === id ? pendingStage.stage : "active";
+      await updateApplication(id, { deadline, status });
       await loadApplications();
+      setPendingStage(null);
       toast.success("마감일이 업데이트되었습니다.");
     } catch (error: any) {
       console.error("Failed to update deadline:", error);
@@ -194,6 +201,27 @@ const Applications = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReviewingStatus = async (id: string) => {
+    // "심사중" only - directly set status without date
+    try {
+      setLoading(true);
+      await updateApplication(id, { status: "reviewing", deadline: null });
+      await loadApplications();
+      setPendingStage(null);
+      toast.success("상태가 업데이트되었습니다.");
+    } catch (error: any) {
+      console.error("Failed to update status:", error);
+      toast.error(`업데이트에 실패했습니다: ${error.message || '알 수 없는 오류'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectStage = (appId: string, stage: Application["status"]) => {
+    // Select stage first, then pick date from calendar
+    setPendingStage({ appId, stage });
   };
 
   const handleAddApplication = async () => {
@@ -235,9 +263,18 @@ const Applications = () => {
     if (app.status === "rejected") {
       return "";
     }
-    if (app.status === "reviewing" || app.deadline === null) {
-      return "심사 중";
+    if (app.status === "reviewing") {
+      return "심사중";
     }
+    // 면접 단계인데 deadline이 없으면 단계명만 표시
+    const isInterviewStage = app.status === "인적성" || app.status === "AI면접" || app.status === "1차면접" || app.status === "2차면접";
+    if (isInterviewStage && app.deadline === null) {
+      return app.status;
+    }
+    if (app.deadline === null) {
+      return "심사중";
+    }
+    // deadline이 있으면 D-day 표시 (배경색으로 단계 구분)
     const dday = calculateDDay(app.deadline);
     if (dday === null) return "-";
     if (dday < 0) return "마감";
@@ -249,7 +286,23 @@ const Applications = () => {
     if (app.status === "rejected") {
       return "bg-transparent";
     }
-    if (app.status === "reviewing" || app.deadline === null) {
+    if (app.status === "reviewing") {
+      return "bg-amber-100 text-amber-700";
+    }
+    // 면접 단계는 deadline 유무와 관계없이 해당 색상 유지
+    if (app.status === "인적성") {
+      return "bg-purple-100 text-purple-700";
+    }
+    if (app.status === "AI면접") {
+      return "bg-cyan-100 text-cyan-700";
+    }
+    if (app.status === "1차면접") {
+      return "bg-blue-100 text-blue-700";
+    }
+    if (app.status === "2차면접") {
+      return "bg-indigo-100 text-indigo-700";
+    }
+    if (app.deadline === null) {
       return "bg-amber-100 text-amber-700";
     }
     const dday = calculateDDay(app.deadline);
@@ -392,16 +445,64 @@ const Applications = () => {
                                   {getDdayText(app)}
                                 </button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0 bg-background" align="end">
-                                <div className="p-2 border-b">
+                              <PopoverContent className="w-[280px] p-0 bg-background" align="center">
+                                <div className="p-2 border-b flex flex-wrap gap-1 justify-center">
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="w-full justify-start text-sm"
-                                    onClick={() => handleDeadlineUpdate(app.id, null, true)}
+                                    className="text-sm px-2"
+                                    onClick={() => handleReviewingStatus(app.id)}
                                     disabled={loading}
                                   >
-                                    심사 중
+                                    심사중
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn(
+                                      "text-sm px-2",
+                                      (pendingStage?.appId === app.id ? pendingStage?.stage === "인적성" : app.status === "인적성") && "bg-purple-100"
+                                    )}
+                                    onClick={() => handleSelectStage(app.id, "인적성")}
+                                    disabled={loading}
+                                  >
+                                    인적성
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn(
+                                      "text-sm px-2",
+                                      (pendingStage?.appId === app.id ? pendingStage?.stage === "AI면접" : app.status === "AI면접") && "bg-cyan-100"
+                                    )}
+                                    onClick={() => handleSelectStage(app.id, "AI면접")}
+                                    disabled={loading}
+                                  >
+                                    AI면접
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn(
+                                      "text-sm px-2",
+                                      (pendingStage?.appId === app.id ? pendingStage?.stage === "1차면접" : app.status === "1차면접") && "bg-blue-100"
+                                    )}
+                                    onClick={() => handleSelectStage(app.id, "1차면접")}
+                                    disabled={loading}
+                                  >
+                                    1차면접
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn(
+                                      "text-sm px-2",
+                                      (pendingStage?.appId === app.id ? pendingStage?.stage === "2차면접" : app.status === "2차면접") && "bg-indigo-100"
+                                    )}
+                                    onClick={() => handleSelectStage(app.id, "2차면접")}
+                                    disabled={loading}
+                                  >
+                                    2차면접
                                   </Button>
                                 </div>
                                 <Calendar
@@ -409,12 +510,12 @@ const Applications = () => {
                                   selected={app.deadline ? new Date(app.deadline) : undefined}
                                   onSelect={(date) => {
                                     if (date) {
-                                      handleDeadlineUpdate(app.id, date, false);
+                                      handleDeadlineUpdate(app.id, date);
                                     }
                                   }}
                                   disabled={(date) => date < new Date()}
                                   initialFocus
-                                  className="p-3 pointer-events-auto"
+                                  className="p-2 pointer-events-auto w-full"
                                 />
                               </PopoverContent>
                             </Popover>
@@ -485,6 +586,170 @@ const Applications = () => {
                           )}
                         </Button>
                       </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Accepted Applications Section */}
+                {acceptedApplications.length > 0 && (
+                  <div className="space-y-3">
+                    {/* Always show first accepted application */}
+                    <div className="space-y-3">
+                      {acceptedApplications.slice(0, 1).map((app) => (
+                        <div key={app.id} className="group">
+                          <Card className="px-5 py-4 transition-all duration-200 group-hover:scale-[1.01] group-hover:shadow-md bg-green-50/40 border-green-100">
+                            <div className="flex items-center gap-4">
+                              {/* Company Initial */}
+                              <div className="w-10 h-10 rounded-full bg-green-100/50 flex items-center justify-center text-sm font-bold text-green-600/70 shrink-0">
+                                {getInitial(app.company)}
+                              </div>
+
+                              {/* Company Info */}
+                              <div className="w-44 shrink-0">
+                                <h3 className="text-base font-bold text-foreground">{app.company}</h3>
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Building2 className="w-3 h-3" />
+                                  {app.position}
+                                </div>
+                              </div>
+
+                              {/* Progress Section */}
+                              <div className="flex-1 min-w-0 relative">
+                                <div className="text-xs font-medium text-green-500/70 mb-1.5">
+                                  {app.stage}
+                                  <span className="ml-1 text-green-400/70">(최종합격)</span>
+                                </div>
+                                <Progress value={app.progress} className="h-1.5 opacity-40" />
+                              </div>
+
+                              {/* Badge */}
+                              <div className="w-20 text-center px-3 py-1.5 rounded-md text-xs font-semibold shrink-0 bg-green-100/50 text-green-600/70">
+                                합격
+                              </div>
+
+                              {/* Menu */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" disabled={loading}>
+                                    <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="bg-background">
+                                  <DropdownMenuItem onClick={() => handleRestore(app.id)} disabled={loading}>
+                                    복원하기
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleDelete(app.id)}
+                                    className="text-destructive"
+                                    disabled={loading}
+                                  >
+                                    삭제하기
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </Card>
+                          {/* Applied Date - shown on hover */}
+                          <div className="overflow-hidden max-h-0 group-hover:max-h-8 transition-all duration-200 ease-out">
+                            <div className="px-4 pt-2 text-xs text-muted-foreground">
+                              <span>지원일: {format(new Date(app.applied_at), "yyyy년 MM월 dd일")}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Show More/Less Button for remaining accepted applications */}
+                    {acceptedApplications.length > 1 && (
+                      <>
+                        {showAccepted && (
+                          <div className="space-y-3">
+                            {acceptedApplications.slice(1).map((app) => (
+                              <div key={app.id} className="group">
+                                <Card className="px-5 py-4 transition-all duration-200 group-hover:scale-[1.01] group-hover:shadow-md bg-green-50/40 border-green-100">
+                                  <div className="flex items-center gap-4">
+                                    {/* Company Initial */}
+                                    <div className="w-10 h-10 rounded-full bg-green-100/50 flex items-center justify-center text-sm font-bold text-green-600/70 shrink-0">
+                                      {getInitial(app.company)}
+                                    </div>
+
+                                    {/* Company Info */}
+                                    <div className="w-44 shrink-0">
+                                      <h3 className="text-base font-bold text-foreground">{app.company}</h3>
+                                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <Building2 className="w-3 h-3" />
+                                        {app.position}
+                                      </div>
+                                    </div>
+
+                                    {/* Progress Section */}
+                                    <div className="flex-1 min-w-0 relative">
+                                      <div className="text-xs font-medium text-green-500/70 mb-1.5">
+                                        {app.stage}
+                                        <span className="ml-1 text-green-400/70">(최종합격)</span>
+                                      </div>
+                                      <Progress value={app.progress} className="h-1.5 opacity-40" />
+                                    </div>
+
+                                    {/* Badge */}
+                                    <div className="w-20 text-center px-3 py-1.5 rounded-md text-xs font-semibold shrink-0 bg-green-100/50 text-green-600/70">
+                                      합격
+                                    </div>
+
+                                    {/* Menu */}
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" disabled={loading}>
+                                          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="bg-background">
+                                        <DropdownMenuItem onClick={() => handleRestore(app.id)} disabled={loading}>
+                                          복원하기
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={() => handleDelete(app.id)}
+                                          className="text-destructive"
+                                          disabled={loading}
+                                        >
+                                          삭제하기
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </Card>
+                                {/* Applied Date - shown on hover */}
+                                <div className="overflow-hidden max-h-0 group-hover:max-h-8 transition-all duration-200 ease-out">
+                                  <div className="px-4 pt-2 text-xs text-muted-foreground">
+                                    <span>지원일: {format(new Date(app.applied_at), "yyyy년 MM월 dd일")}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex justify-center pt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowAccepted(!showAccepted)}
+                            className="text-sm text-muted-foreground hover:text-foreground"
+                          >
+                            {showAccepted ? (
+                              <>
+                                <ChevronUp className="w-4 h-4 mr-1" />
+                                접기
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-4 h-4 mr-1" />
+                                더보기 ({acceptedApplications.length - 1}개 더)
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}

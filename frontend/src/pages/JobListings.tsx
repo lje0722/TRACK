@@ -326,13 +326,13 @@ const JobListings = () => {
   const getScaleColor = (scale: JobListing["company_size"]) => {
     switch (scale) {
       case "대기업":
-        return "text-sky-400";
+        return "text-green-500";
       case "중견기업":
-        return "text-violet-400";
+        return "text-orange-600";
       case "중소기업":
         return "text-amber-400";
       case "스타트업":
-        return "text-emerald-400";
+        return "text-blue-500";
       default:
         return "text-muted-foreground";
     }
@@ -481,7 +481,7 @@ const JobListings = () => {
                           onValueChange={(value) => handleStatusChange(listing, value)}
                         >
                           <SelectTrigger className={cn(
-                            "h-7 w-[110px] border-0 bg-transparent p-0 text-xs focus:ring-0",
+                            "h-7 w-fit gap-1 border-0 bg-transparent p-0 text-xs focus:ring-0",
                             getStatusColor(listing.status)
                           )}>
                             <SelectValue />
@@ -489,7 +489,7 @@ const JobListings = () => {
                           <SelectContent>
                             {STATUSES.map((status) => (
                               <SelectItem key={status} value={status}>
-                                {status}
+                                {status === "Not applied" ? "NA" : status}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -742,7 +742,7 @@ const JobListings = () => {
                       <SelectContent>
                         {STATUSES.map((status) => (
                           <SelectItem key={status} value={status}>
-                            {status}
+                            {status === "Not applied" ? "NA" : status}
                           </SelectItem>
                         ))}
                       </SelectContent>

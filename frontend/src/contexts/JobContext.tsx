@@ -7,7 +7,7 @@ export interface JobListing {
   location: string;
   industry: string;
   scale: "대기업" | "중견기업" | "중소기업" | "스타트업";
-  status: "Not applied" | "Applied";
+  status: "Not applied" | "Applied" | "심사중" | "인적성" | "AI면접" | "1차면접" | "2차면접";
   url: string;
   deadline: string;
 }

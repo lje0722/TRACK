@@ -8,7 +8,7 @@ export interface JobListing {
   location: string;
   industry: string;
   company_size: "대기업" | "중견기업" | "중소기업" | "스타트업" | null;
-  status: "Not applied" | "Applied";
+  status: "Not applied" | "Applied" | "심사중" | "인적성" | "AI면접" | "1차면접" | "2차면접";
   deadline: string | null; // DATE format: YYYY-MM-DD
   job_post_url: string;
   created_at: string;
@@ -31,7 +31,7 @@ export interface UpdateJobListingInput {
   location?: string;
   industry?: string;
   company_size?: "대기업" | "중견기업" | "중소기업" | "스타트업" | null;
-  status?: "Not applied" | "Applied";
+  status?: "Not applied" | "Applied" | "심사중" | "인적성" | "AI면접" | "1차면접" | "2차면접";
   deadline?: Date | null;
   job_post_url?: string;
 }
@@ -64,7 +64,7 @@ export async function getAllJobListings(): Promise<JobListing[]> {
  * Get job listings by status
  */
 export async function getJobListingsByStatus(
-  status: "Not applied" | "Applied"
+  status: "Not applied" | "Applied" | "심사중" | "인적성" | "AI면접" | "1차면접" | "2차면접"
 ): Promise<JobListing[]> {
   const { data: { user } } = await supabase.auth.getUser();
 
