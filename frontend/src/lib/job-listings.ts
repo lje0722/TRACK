@@ -168,6 +168,14 @@ export async function createJobListing(
     throw new Error("User not authenticated");
   }
 
+  // Format deadline as YYYY-MM-DD using local timezone
+  const formatDateLocal = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const { data, error } = await supabase
     .from("job_listings")
     .insert({
@@ -177,7 +185,7 @@ export async function createJobListing(
       location: input.location || "",
       industry: input.industry || "",
       company_size: input.company_size || null,
-      deadline: input.deadline ? input.deadline.toISOString().split('T')[0] : null,
+      deadline: input.deadline ? formatDateLocal(input.deadline) : null,
       job_post_url: input.job_post_url || "",
       status: "Not applied",
     })
@@ -205,6 +213,14 @@ export async function updateJobListing(
     throw new Error("User not authenticated");
   }
 
+  // Format deadline as YYYY-MM-DD using local timezone
+  const formatDateLocal = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const updateData: any = {};
 
   if (input.company !== undefined) updateData.company = input.company;
@@ -215,7 +231,7 @@ export async function updateJobListing(
   if (input.status !== undefined) updateData.status = input.status;
   if (input.job_post_url !== undefined) updateData.job_post_url = input.job_post_url;
   if (input.deadline !== undefined) {
-    updateData.deadline = input.deadline ? input.deadline.toISOString().split('T')[0] : null;
+    updateData.deadline = input.deadline ? formatDateLocal(input.deadline) : null;
   }
 
   const { data, error } = await supabase

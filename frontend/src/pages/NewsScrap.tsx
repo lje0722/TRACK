@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Trash2, Plus, ChevronUp } from "lucide-react";
+import { Trash2, Plus, ChevronUp, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,11 +18,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import Sidebar from "@/components/dashboard/Sidebar";
 import RichTextEditor from "@/components/news/RichTextEditor";
 import {
   getAllNewsScraps,
   createNewsScrap,
+  updateNewsScrap,
   deleteNewsScrap,
   type NewsScrap as NewsScrapType,
 } from "@/lib/news-scraps";
@@ -54,6 +60,7 @@ const NewsScrap = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // 3-step form state
   const [currentStep, setCurrentStep] = useState(1);
@@ -142,6 +149,21 @@ const NewsScrap = () => {
     }
   };
 
+  const handleEdit = (item: NewsScrapType) => {
+    setEditingId(item.id);
+    setFormData({
+      article_url: item.article_url,
+      headline: item.headline,
+      content: item.content,
+      additional_research: "",
+      applied_role: item.applied_role || "",
+      industry: item.industry || "",
+      company_name: item.company_name || "",
+    });
+    setCurrentStep(1);
+    setIsFormOpen(true);
+  };
+
   // Form validation
   const isStep1Valid = formData.article_url.trim() !== "" &&
                        formData.headline.trim() !== "" &&
@@ -168,22 +190,31 @@ const NewsScrap = () => {
       setLoading(true);
       // additional_research는 임시 작업용이므로 DB에 저장하지 않음
       const { additional_research, ...dataToSave } = formData;
-      await createNewsScrap(dataToSave);
+
+      if (editingId) {
+        // 수정 모드
+        await updateNewsScrap(editingId, dataToSave);
+        toast.success("뉴스 스크랩이 수정되었습니다.");
+      } else {
+        // 새로 작성 모드
+        await createNewsScrap(dataToSave);
+
+        // Mark routine as completed (JobContext - legacy)
+        markNewsScrapAdded();
+
+        // Auto-check routine for today
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        await markAutoCheckRoutine(todayStr, "news_scrap");
+        await useDashboardStore.getState().refreshTodayRoutines();
+
+        toast.success("뉴스 스크랩이 저장되었습니다.");
+      }
+
       await loadNewsScraps();
-
-      // Mark routine as completed (JobContext - legacy)
-      markNewsScrapAdded();
-
-      // Auto-check routine for today
-      const today = new Date();
-      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      await markAutoCheckRoutine(todayStr, "news_scrap");
-      await useDashboardStore.getState().refreshTodayRoutines();
-
-      toast.success("뉴스 스크랩이 저장되었습니다.");
       resetForm();
     } catch (error: any) {
-      console.error("Failed to create news scrap:", error);
+      console.error("Failed to save news scrap:", error);
       toast.error(`뉴스 스크랩 저장에 실패했습니다: ${error.message || '알 수 없는 오류'}`);
     } finally {
       setLoading(false);
@@ -201,6 +232,7 @@ const NewsScrap = () => {
       industry: "",
       company_name: "",
     });
+    setEditingId(null);
     setIsFormOpen(false);
   };
 
@@ -210,6 +242,12 @@ const NewsScrap = () => {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  const truncateText = (text: string, maxLength: number = 20) => {
+    if (!text) return null;
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + "...";
   };
 
   const steps = [
@@ -308,7 +346,7 @@ const NewsScrap = () => {
                   <TableHead className="w-[200px]">적용점 / 현직자 인터뷰 질문</TableHead>
                   <TableHead className="w-[140px] text-left px-4">산업</TableHead>
                   <TableHead className="w-[100px] text-left px-4">기업명</TableHead>
-                  <TableHead className="w-[60px] text-center">삭제</TableHead>
+                  <TableHead className="w-[100px] text-center">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -341,7 +379,20 @@ const NewsScrap = () => {
                         </a>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {item.applied_role || "아직 작성된 노트가 없습니다..."}
+                        {item.applied_role && item.applied_role.length > 20 ? (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <span className="cursor-pointer hover:text-foreground">
+                                {truncateText(item.applied_role)}
+                              </span>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 p-3">
+                              <p className="text-sm whitespace-pre-wrap">{item.applied_role}</p>
+                            </PopoverContent>
+                          </Popover>
+                        ) : (
+                          item.applied_role || "아직 작성된 노트가 없습니다..."
+                        )}
                       </TableCell>
                       <TableCell className="text-left px-4 py-2">
                         {item.industry || "-"}
@@ -350,15 +401,26 @@ const NewsScrap = () => {
                         {item.company_name || "-"}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDelete(item.id)}
-                          disabled={loading}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => handleEdit(item)}
+                            disabled={loading}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDelete(item.id)}
+                            disabled={loading}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -391,7 +453,13 @@ const NewsScrap = () => {
             <Button
               className="rounded-full px-6 py-3 shadow-lg"
               size="lg"
-              onClick={() => setIsFormOpen(!isFormOpen)}
+              onClick={() => {
+                if (isFormOpen) {
+                  resetForm();
+                } else {
+                  setIsFormOpen(true);
+                }
+              }}
               disabled={loading}
             >
               {isFormOpen ? (
@@ -667,7 +735,7 @@ const NewsScrap = () => {
                       disabled={loading}
                       className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                     >
-                      {loading ? "저장 중..." : "저장"}
+                      {loading ? "저장 중..." : editingId ? "수정" : "저장"}
                     </Button>
                   )}
                 </div>

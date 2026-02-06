@@ -1,5 +1,36 @@
 # TRACK 프로젝트 변경 이력
 
+## 2026-02-06: UI/UX 개선 & 버그 수정
+
+### 주요 변경사항
+
+1. **대시보드 Sticker 스크롤 기능**
+   - 파일: `frontend/src/components/dashboard/Sticker.tsx`
+   - 할 일이 12개를 초과하면 내부 스크롤 활성화 (`max-h-[340px] overflow-y-auto`)
+   - X 버튼에 `mr-1` 추가하여 스크롤바와 겹침 방지
+
+2. **뉴스 스크랩 - 적용점/인터뷰 질문 truncate**
+   - 파일: `frontend/src/pages/NewsScrap.tsx`
+   - 20자 초과 시 "..." 표시, 클릭하면 Popover로 전체 내용 확인
+
+3. **뉴스 스크랩 - 수정 기능 추가**
+   - 파일: `frontend/src/pages/NewsScrap.tsx`
+   - 테이블에 수정 버튼(연필 아이콘) 추가
+   - 기존 3단계 폼에서 데이터 로드 후 수정 가능
+   - `updateNewsScrap` API 연동
+
+4. **기업 지원 리스트 - 마감일 timezone 버그 수정**
+   - 파일: `frontend/src/pages/JobListings.tsx`, `frontend/src/lib/job-listings.ts`
+   - 문제: `new Date("YYYY-MM-DD")`가 UTC로 해석되어 한국 시간에서 하루 전으로 표시
+   - 해결: `new Date(year, month - 1, day)` 로컬 타임존 파싱 적용
+   - 저장 시에도 `toISOString()` 대신 로컬 타임존 기준 포맷 사용
+
+5. **기업 지원 리스트 - 규모 컬럼 줄바꿈 방지**
+   - 파일: `frontend/src/pages/JobListings.tsx`
+   - 규모 컬럼에 `whitespace-nowrap` 추가하여 화면 축소 시 줄바꿈 방지
+
+---
+
 ## 2026-02-05: 대시보드 실시간 동기화 & UI 개선
 
 ### 주요 변경사항

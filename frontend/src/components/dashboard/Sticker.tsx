@@ -194,8 +194,8 @@ const Sticker = () => {
         </div>
       </div>
 
-      {/* Content area - items + add button together */}
-      <div className="flex-1 overflow-auto max-h-[220px]">
+      {/* Content area - items + add button together, max 12 items visible then scroll */}
+      <div className="max-h-[340px] overflow-y-auto pr-1">
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
@@ -252,7 +252,7 @@ const Sticker = () => {
                 {/* Delete button */}
                 <button
                   onClick={() => handleDelete(item.id)}
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-0.5"
+                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-0.5 mr-1"
                 >
                   <X className="w-4 h-4" />
                 </button>

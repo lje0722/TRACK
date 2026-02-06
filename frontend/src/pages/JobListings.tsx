@@ -221,9 +221,10 @@ const JobListings = () => {
     setEditScale(listing.company_size || "");
     setEditStatus(listing.status);
     setEditUrl(listing.job_post_url);
-    // Parse deadline string (YYYY-MM-DD) to Date
+    // Parse deadline string (YYYY-MM-DD) to Date - use local timezone
     if (listing.deadline) {
-      setEditDeadline(new Date(listing.deadline));
+      const [year, month, day] = listing.deadline.split('-').map(Number);
+      setEditDeadline(new Date(year, month - 1, day));
     } else {
       setEditDeadline(undefined);
     }
@@ -296,13 +297,19 @@ const JobListings = () => {
     try {
       setLoading(true);
 
-      // 1. Create application
+      // 1. Create application - parse deadline with local timezone
+      let deadlineDate: Date | null = null;
+      if (selectedListing.deadline) {
+        const [year, month, day] = selectedListing.deadline.split('-').map(Number);
+        deadlineDate = new Date(year, month - 1, day);
+      }
+
       await createApplication({
         company: selectedListing.company,
         position: selectedListing.position,
         stage: "서류 접수",
         progress: 10,
-        deadline: selectedListing.deadline ? new Date(selectedListing.deadline) : null,
+        deadline: deadlineDate,
         applied_at: new Date(),
         status: "active",
         url: selectedListing.job_post_url,
@@ -472,7 +479,7 @@ const JobListings = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-sm py-2">{listing.position}</TableCell>
-                      <TableCell className="py-2">
+                      <TableCell className="py-2 whitespace-nowrap">
                         <span className={cn("text-xs", getScaleColor(listing.company_size))}>
                           {listing.company_size || "-"}
                         </span>
@@ -498,7 +505,10 @@ const JobListings = () => {
                         </Select>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs py-2">
-                        {listing.deadline ? format(new Date(listing.deadline), "MM/dd/yyyy") : "-"}
+                        {listing.deadline ? (() => {
+                          const [year, month, day] = listing.deadline.split('-').map(Number);
+                          return format(new Date(year, month - 1, day), "MM/dd/yyyy");
+                        })() : "-"}
                       </TableCell>
                       <TableCell className="py-2">
                         <DropdownMenu>
