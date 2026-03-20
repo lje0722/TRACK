@@ -67,10 +67,15 @@ const Sticker = () => {
   };
 
   const addItem = async () => {
-    if (!newItem.trim()) return;
+    const text = newItem.trim();
+    if (!text) return;
+
+    // 즉시 초기화해서 중복 호출 방지
+    setNewItem("");
+    setIsAdding(false);
 
     try {
-      const data = await createSticker(newItem);
+      const data = await createSticker(text);
       const newItems = [...items, {
         id: data.id,
         text: data.text,
@@ -78,10 +83,11 @@ const Sticker = () => {
       }];
       setItems(newItems);
       updateCache(newItems);
-      setNewItem("");
-      setIsAdding(false);
     } catch (error) {
       console.error("Failed to add sticker:", error);
+      // 실패 시 복원
+      setNewItem(text);
+      setIsAdding(true);
     }
   };
 

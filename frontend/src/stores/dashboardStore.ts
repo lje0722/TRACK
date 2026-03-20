@@ -94,16 +94,23 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
   // Preload all data
   preloadData: async () => {
+    // 8초 안에 응답 없으면 강제로 ready 처리
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('preload timeout')), 8000)
+    );
     try {
       const todayStr = getTodayDateString();
 
-      // Fetch all data in parallel
-      const [routines, apps, news, weekRoutines] = await Promise.all([
-        getRoutinesByDate(todayStr),
-        getAllApplications(),
-        getAllNewsScraps(),
-        loadWeekRoutines()
-      ]);
+      // Fetch all data in parallel (with timeout)
+      const [routines, apps, news, weekRoutines] = await Promise.race([
+        Promise.all([
+          getRoutinesByDate(todayStr),
+          getAllApplications(),
+          getAllNewsScraps(),
+          loadWeekRoutines()
+        ]),
+        timeout,
+      ]) as [any, any, any, any];
 
       set({
         todayRoutines: routines,

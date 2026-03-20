@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Plus, MoreHorizontal, Building2, CalendarIcon, ChevronDown, ChevronUp, Search, X, Filter } from "lucide-react";
+import { Plus, MoreHorizontal, Building2, CalendarIcon, ChevronDown, ChevronUp, Search, X, Filter, Minus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,16 +32,22 @@ import {
 } from "@/components/ui/select";
 import Sidebar from "@/components/dashboard/Sidebar";
 import { cn } from "@/lib/utils";
-import { differenceInDays, format } from "date-fns";
+import { format } from "date-fns";
 import {
   getAllApplications,
   createApplication,
   updateApplication,
   deleteApplication,
   calculateDDay,
-  formatDDay,
   type Application,
 } from "@/lib/applications";
+import {
+  getCoverLetters,
+  addCoverLetter,
+  deleteCoverLetter,
+  updateCoverLetter,
+  type CoverLetterEntry,
+} from "@/lib/cover-letters";
 import { toast } from "sonner";
 
 const PROGRESS_STAGES = [
@@ -60,6 +66,17 @@ const Applications = () => {
   const [showRejected, setShowRejected] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPosition, setSelectedPosition] = useState<string>("all");
+
+  // Expand / Cover letter state
+  const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
+  const [coverLetters, setCoverLetters] = useState<Record<string, CoverLetterEntry[]>>({});
+  const [isAddingEntry, setIsAddingEntry] = useState(false);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [newEntryTitle, setNewEntryTitle] = useState("");
+  const [newEntryContent, setNewEntryContent] = useState("");
+  const [isEditingEntry, setIsEditingEntry] = useState(false);
+  const [editEntryTitle, setEditEntryTitle] = useState("");
+  const [editEntryContent, setEditEntryContent] = useState("");
 
   // Form state
   const [newCompany, setNewCompany] = useState("");
@@ -318,6 +335,196 @@ const Applications = () => {
     return "bg-sky-100 text-sky-600";
   };
 
+  // ── Cover letter helpers ──────────────────────────────────────────────────
+
+  const toggleExpand = (appId: string) => {
+    if (expandedAppId === appId) {
+      setExpandedAppId(null);
+    } else {
+      setExpandedAppId(appId);
+      setIsAddingEntry(false);
+      setIsEditingEntry(false);
+      setSelectedEntryId(null);
+      setNewEntryTitle("");
+      setNewEntryContent("");
+      setCoverLetters(prev => ({
+        ...prev,
+        [appId]: getCoverLetters(appId),
+      }));
+    }
+  };
+
+  const handleSaveEntry = () => {
+    if (!expandedAppId || !newEntryTitle.trim()) return;
+    const entry = addCoverLetter(expandedAppId, newEntryTitle.trim(), newEntryContent);
+    setCoverLetters(prev => ({
+      ...prev,
+      [expandedAppId]: [...(prev[expandedAppId] || []), entry],
+    }));
+    setIsAddingEntry(false);
+    setSelectedEntryId(entry.id);
+    setNewEntryTitle("");
+    setNewEntryContent("");
+  };
+
+  const handleUpdateEntry = () => {
+    if (!expandedAppId || !selectedEntryId || !editEntryTitle.trim()) return;
+    updateCoverLetter(expandedAppId, selectedEntryId, editEntryTitle.trim(), editEntryContent);
+    setCoverLetters(prev => ({
+      ...prev,
+      [expandedAppId]: (prev[expandedAppId] || []).map(e =>
+        e.id === selectedEntryId ? { ...e, title: editEntryTitle.trim(), content: editEntryContent } : e
+      ),
+    }));
+    setIsEditingEntry(false);
+  };
+
+  const handleDeleteEntry = (appId: string, entryId: string) => {
+    deleteCoverLetter(appId, entryId);
+    setCoverLetters(prev => ({
+      ...prev,
+      [appId]: (prev[appId] || []).filter(e => e.id !== entryId),
+    }));
+    setSelectedEntryId(null);
+  };
+
+  const renderCoverLetterSection = (appId: string) => {
+    const entries = coverLetters[appId] || [];
+    const selectedEntry = entries.find(e => e.id === selectedEntryId);
+
+    const entryForm = (
+      title: string,
+      titleValue: string,
+      onTitleChange: (v: string) => void,
+      contentValue: string,
+      onContentChange: (v: string) => void,
+      onSave: () => void,
+      onCancel: () => void
+    ) => (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="font-medium text-sm">{title}</h4>
+          <div className="flex gap-2">
+            <button onClick={onSave} className="text-primary hover:text-primary/80 transition-colors">
+              <Check className="w-5 h-5" />
+            </button>
+            <button onClick={onCancel} className="text-muted-foreground hover:text-foreground transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">문항 제목</label>
+            <Input
+              placeholder="예: 지원동기"
+              value={titleValue}
+              onChange={(e) => onTitleChange(e.target.value)}
+              className="text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">내용</label>
+            <textarea
+              placeholder="자기소개서 내용을 입력하세요..."
+              value={contentValue}
+              onChange={(e) => onContentChange(e.target.value)}
+              className="w-full h-40 text-sm border border-input rounded-md p-3 resize-none bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <div className="text-right text-xs text-muted-foreground mt-1">
+              {contentValue.length} 자 (공백포함)
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="mt-4 pt-4 border-t border-border">
+        <div className="flex gap-4 items-start">
+          {/* Left sidebar – numbered entries + controls */}
+          <div className="flex flex-col gap-2 items-center shrink-0">
+            {entries.map((entry, index) => (
+              <button
+                key={entry.id}
+                onClick={() => { setSelectedEntryId(entry.id); setIsAddingEntry(false); setIsEditingEntry(false); }}
+                className={cn(
+                  "w-10 h-10 rounded-full text-sm font-extrabold transition-colors",
+                  selectedEntryId === entry.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground hover:bg-muted/80"
+                )}
+              >
+                {index + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => { setIsAddingEntry(true); setIsEditingEntry(false); setSelectedEntryId(null); }}
+              className="w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center text-primary hover:bg-muted transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+            {selectedEntryId && (
+              <button
+                onClick={() => {
+                  if (window.confirm("이 문항을 삭제하시겠습니까?")) {
+                    handleDeleteEntry(appId, selectedEntryId);
+                  }
+                }}
+                className="w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center text-destructive hover:bg-red-50 transition-colors"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Content area */}
+          <div className="flex-1 bg-muted/20 rounded-lg min-h-[200px] p-4">
+            {isAddingEntry ? (
+              entryForm(
+                "새 문항 추가",
+                newEntryTitle, setNewEntryTitle,
+                newEntryContent, setNewEntryContent,
+                handleSaveEntry,
+                () => { setIsAddingEntry(false); setNewEntryTitle(""); setNewEntryContent(""); }
+              )
+            ) : isEditingEntry && selectedEntry ? (
+              entryForm(
+                "문항 수정",
+                editEntryTitle, setEditEntryTitle,
+                editEntryContent, setEditEntryContent,
+                handleUpdateEntry,
+                () => setIsEditingEntry(false)
+              )
+            ) : selectedEntry ? (
+              <div>
+                <div className="flex items-start justify-between mb-3">
+                  <h4 className="font-semibold text-sm text-foreground">{selectedEntry.title}</h4>
+                  <button
+                    onClick={() => { setEditEntryTitle(selectedEntry.title); setEditEntryContent(selectedEntry.content); setIsEditingEntry(true); }}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors shrink-0 ml-2"
+                  >
+                    수정
+                  </button>
+                </div>
+                <div className="border-t border-border pt-3">
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{selectedEntry.content}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-center text-muted-foreground">
+                <p className="text-sm">등록된 자기소개서가 없습니다.</p>
+                <p className="text-xs mt-1">+ 버튼을 눌러 자기소개서를 추가하세요.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+
   return (
     <div className="h-screen flex w-full bg-[hsl(var(--light-gray))] overflow-hidden">
       <Sidebar />
@@ -409,7 +616,7 @@ const Applications = () => {
                   <div className="space-y-3">
                     {displayedActiveApplications.map((app) => (
                       <div key={app.id} className="group">
-                        <Card className="px-5 py-4 transition-all duration-200 group-hover:scale-[1.01] group-hover:shadow-md">
+                        <Card className={cn("px-5 py-4 transition-all duration-200", expandedAppId === app.id ? "shadow-md" : "group-hover:scale-[1.01] group-hover:shadow-md")}>
                           <div className="flex items-center gap-4">
                             {/* Company Initial */}
                             <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground shrink-0">
@@ -553,7 +760,23 @@ const Applications = () => {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
+
+                            {/* Expand toggle */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0 h-8 w-8"
+                              onClick={() => toggleExpand(app.id)}
+                            >
+                              {expandedAppId === app.id
+                                ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                : <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              }
+                            </Button>
                           </div>
+
+                          {/* Cover letter expanded section */}
+                          {expandedAppId === app.id && renderCoverLetterSection(app.id)}
                         </Card>
                         {/* Applied Date - shown on hover */}
                         <div className="overflow-hidden max-h-0 group-hover:max-h-8 transition-all duration-200 ease-out">
@@ -597,7 +820,7 @@ const Applications = () => {
                     <div className="space-y-3">
                       {acceptedApplications.slice(0, 1).map((app) => (
                         <div key={app.id} className="group">
-                          <Card className="px-5 py-4 transition-all duration-200 group-hover:scale-[1.01] group-hover:shadow-md bg-green-50/40 border-green-100">
+                          <Card className={cn("px-5 py-4 transition-all duration-200 bg-green-50/40 border-green-100", expandedAppId === app.id ? "shadow-md" : "group-hover:scale-[1.01] group-hover:shadow-md")}>
                             <div className="flex items-center gap-4">
                               {/* Company Initial */}
                               <div className="w-10 h-10 rounded-full bg-green-100/50 flex items-center justify-center text-sm font-bold text-green-600/70 shrink-0">
@@ -647,7 +870,23 @@ const Applications = () => {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
+
+                              {/* Expand toggle */}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="shrink-0 h-8 w-8"
+                                onClick={() => toggleExpand(app.id)}
+                              >
+                                {expandedAppId === app.id
+                                  ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                  : <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                }
+                              </Button>
                             </div>
+
+                            {/* Cover letter expanded section */}
+                            {expandedAppId === app.id && renderCoverLetterSection(app.id)}
                           </Card>
                           {/* Applied Date - shown on hover */}
                           <div className="overflow-hidden max-h-0 group-hover:max-h-8 transition-all duration-200 ease-out">
@@ -666,7 +905,7 @@ const Applications = () => {
                           <div className="space-y-3">
                             {acceptedApplications.slice(1).map((app) => (
                               <div key={app.id} className="group">
-                                <Card className="px-5 py-4 transition-all duration-200 group-hover:scale-[1.01] group-hover:shadow-md bg-green-50/40 border-green-100">
+                                <Card className={cn("px-5 py-4 transition-all duration-200 bg-green-50/40 border-green-100", expandedAppId === app.id ? "shadow-md" : "group-hover:scale-[1.01] group-hover:shadow-md")}>
                                   <div className="flex items-center gap-4">
                                     {/* Company Initial */}
                                     <div className="w-10 h-10 rounded-full bg-green-100/50 flex items-center justify-center text-sm font-bold text-green-600/70 shrink-0">
@@ -716,7 +955,23 @@ const Applications = () => {
                                         </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>
+
+                                    {/* Expand toggle */}
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="shrink-0 h-8 w-8"
+                                      onClick={() => toggleExpand(app.id)}
+                                    >
+                                      {expandedAppId === app.id
+                                        ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                        : <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                      }
+                                    </Button>
                                   </div>
+
+                                  {/* Cover letter expanded section */}
+                                  {expandedAppId === app.id && renderCoverLetterSection(app.id)}
                                 </Card>
                                 {/* Applied Date - shown on hover */}
                                 <div className="overflow-hidden max-h-0 group-hover:max-h-8 transition-all duration-200 ease-out">
@@ -761,7 +1016,7 @@ const Applications = () => {
                     <div className="space-y-3">
                       {rejectedApplications.slice(0, 1).map((app) => (
                         <div key={app.id} className="group">
-                          <Card className="px-5 py-4 transition-all duration-200 group-hover:scale-[1.01] group-hover:shadow-md opacity-50 grayscale">
+                          <Card className={cn("px-5 py-4 transition-all duration-200 opacity-50 grayscale", expandedAppId === app.id ? "shadow-md" : "group-hover:scale-[1.01] group-hover:shadow-md")}>
                             <div className="flex items-center gap-4">
                               {/* Company Initial */}
                               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground shrink-0">
@@ -809,7 +1064,23 @@ const Applications = () => {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
+
+                              {/* Expand toggle */}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="shrink-0 h-8 w-8"
+                                onClick={() => toggleExpand(app.id)}
+                              >
+                                {expandedAppId === app.id
+                                  ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                  : <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                }
+                              </Button>
                             </div>
+
+                            {/* Cover letter expanded section */}
+                            {expandedAppId === app.id && renderCoverLetterSection(app.id)}
                           </Card>
                           {/* Applied Date - shown on hover */}
                           <div className="overflow-hidden max-h-0 group-hover:max-h-8 transition-all duration-200 ease-out">
@@ -828,7 +1099,7 @@ const Applications = () => {
                           <div className="space-y-3">
                             {rejectedApplications.slice(1).map((app) => (
                               <div key={app.id} className="group">
-                                <Card className="px-5 py-4 transition-all duration-200 group-hover:scale-[1.01] group-hover:shadow-md opacity-50 grayscale">
+                                <Card className={cn("px-5 py-4 transition-all duration-200 opacity-50 grayscale", expandedAppId === app.id ? "shadow-md" : "group-hover:scale-[1.01] group-hover:shadow-md")}>
                                   <div className="flex items-center gap-4">
                                     {/* Company Initial */}
                                     <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground shrink-0">
@@ -876,7 +1147,23 @@ const Applications = () => {
                                         </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>
+
+                                    {/* Expand toggle */}
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="shrink-0 h-8 w-8"
+                                      onClick={() => toggleExpand(app.id)}
+                                    >
+                                      {expandedAppId === app.id
+                                        ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                        : <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                      }
+                                    </Button>
                                   </div>
+
+                                  {/* Cover letter expanded section */}
+                                  {expandedAppId === app.id && renderCoverLetterSection(app.id)}
                                 </Card>
                                 {/* Applied Date - shown on hover */}
                                 <div className="overflow-hidden max-h-0 group-hover:max-h-8 transition-all duration-200 ease-out">
