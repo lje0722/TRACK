@@ -215,13 +215,9 @@ const Applications = () => {
   const handleDeadlineUpdate = async (id: string, deadline: Date) => {
     try {
       setLoading(true);
+      // stage가 이미 선택된 경우 deadline만 추가, 아니면 active 유지
       const status = pendingStage?.appId === id ? pendingStage.stage : "active";
-      const stageInfo = INTERVIEW_STAGE_PROGRESS[status];
-      await updateApplication(id, {
-        deadline,
-        status,
-        ...(stageInfo && { progress: stageInfo.progress, stage: stageInfo.stage }),
-      });
+      await updateApplication(id, { deadline, status });
       await loadApplications();
       setPendingStage(null);
       toast.success("마감일이 업데이트되었습니다.");
@@ -254,9 +250,21 @@ const Applications = () => {
     }
   };
 
-  const handleSelectStage = (appId: string, stage: Application["status"]) => {
-    // Select stage first, then pick date from calendar
+  const handleSelectStage = async (appId: string, stage: Application["status"]) => {
+    // 단계 선택 즉시 DB 업데이트 (날짜 선택 없이도 반영)
     setPendingStage({ appId, stage });
+    const stageInfo = INTERVIEW_STAGE_PROGRESS[stage];
+    if (!stageInfo) return;
+    try {
+      await updateApplication(appId, {
+        status: stage,
+        progress: stageInfo.progress,
+        stage: stageInfo.stage,
+      });
+      await loadApplications();
+    } catch (error: any) {
+      console.error("Failed to update stage:", error);
+    }
   };
 
   const handleAddApplication = async () => {
