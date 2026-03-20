@@ -57,6 +57,15 @@ const PROGRESS_STAGES = [
   { label: "최종합격", progress: 100 },
 ];
 
+// 각 면접 단계별 진행률 및 stage 레이블
+const INTERVIEW_STAGE_PROGRESS: Record<string, { progress: number; stage: string }> = {
+  reviewing: { progress: 10, stage: "서류 접수" },
+  인적성:    { progress: 25, stage: "인적성" },
+  AI면접:    { progress: 45, stage: "AI면접" },
+  "1차면접": { progress: 65, stage: "1차면접" },
+  "2차면접": { progress: 100, stage: "2차면접" },
+};
+
 const Applications = () => {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(false);
@@ -206,9 +215,13 @@ const Applications = () => {
   const handleDeadlineUpdate = async (id: string, deadline: Date) => {
     try {
       setLoading(true);
-      // Use pending stage if selected, otherwise just set deadline with active status
       const status = pendingStage?.appId === id ? pendingStage.stage : "active";
-      await updateApplication(id, { deadline, status });
+      const stageInfo = INTERVIEW_STAGE_PROGRESS[status];
+      await updateApplication(id, {
+        deadline,
+        status,
+        ...(stageInfo && { progress: stageInfo.progress, stage: stageInfo.stage }),
+      });
       await loadApplications();
       setPendingStage(null);
       toast.success("마감일이 업데이트되었습니다.");
@@ -221,10 +234,15 @@ const Applications = () => {
   };
 
   const handleReviewingStatus = async (id: string) => {
-    // "심사중" only - directly set status without date
+    // "서류 접수" - 초기 단계로 설정
     try {
       setLoading(true);
-      await updateApplication(id, { status: "reviewing", deadline: null });
+      await updateApplication(id, {
+        status: "reviewing",
+        deadline: null,
+        progress: INTERVIEW_STAGE_PROGRESS.reviewing.progress,
+        stage: INTERVIEW_STAGE_PROGRESS.reviewing.stage,
+      });
       await loadApplications();
       setPendingStage(null);
       toast.success("상태가 업데이트되었습니다.");
@@ -281,7 +299,7 @@ const Applications = () => {
       return "";
     }
     if (app.status === "reviewing") {
-      return "심사중";
+      return "서류 접수";
     }
     // 면접 단계인데 deadline이 없으면 단계명만 표시
     const isInterviewStage = app.status === "인적성" || app.status === "AI면접" || app.status === "1차면접" || app.status === "2차면접";
@@ -289,7 +307,7 @@ const Applications = () => {
       return app.status;
     }
     if (app.deadline === null) {
-      return "심사중";
+      return "서류 접수";
     }
     // deadline이 있으면 D-day 표시 (배경색으로 단계 구분)
     const dday = calculateDDay(app.deadline);
@@ -304,7 +322,7 @@ const Applications = () => {
       return "bg-transparent";
     }
     if (app.status === "reviewing") {
-      return "bg-amber-100 text-amber-700";
+      return "bg-sky-100 text-sky-700";
     }
     // 면접 단계는 deadline 유무와 관계없이 해당 색상 유지
     if (app.status === "인적성") {
@@ -320,7 +338,7 @@ const Applications = () => {
       return "bg-indigo-100 text-indigo-700";
     }
     if (app.deadline === null) {
-      return "bg-amber-100 text-amber-700";
+      return "bg-sky-100 text-sky-700";
     }
     const dday = calculateDDay(app.deadline);
     if (dday === null || dday < 0) {
@@ -661,7 +679,7 @@ const Applications = () => {
                                     onClick={() => handleReviewingStatus(app.id)}
                                     disabled={loading}
                                   >
-                                    심사중
+                                    서류 접수
                                   </Button>
                                   <Button
                                     variant="ghost"
