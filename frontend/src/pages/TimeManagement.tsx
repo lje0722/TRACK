@@ -6,6 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -74,9 +80,11 @@ const TimeManagement = () => {
     { week: 4, goal: "" },
   ]);
   const [loading, setLoading] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // Store timeout IDs for debounced saves (one per week)
   const saveTimeoutRefs = useRef<{ [key: number]: NodeJS.Timeout }>({});
+  const calendarScrollRef = useRef<HTMLDivElement>(null);
 
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -128,6 +136,14 @@ const TimeManagement = () => {
         clearTimeout(timeout);
       });
     };
+  }, []);
+
+  // Scroll calendar to noon (오후 12시) on initial render
+  useEffect(() => {
+    if (calendarScrollRef.current) {
+      // "하루 종일" row: 32px (h-8) + hours 0–11: 12 × 40px = 480px
+      calendarScrollRef.current.scrollTop = 32 + 12 * 40;
+    }
   }, []);
 
   const loadTimeLogs = async () => {
@@ -334,23 +350,10 @@ const TimeManagement = () => {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Content Area */}
         <main className="flex-1 px-32 py-6 overflow-auto">
-          {/* Page Title */}
-          <div className="mb-6 text-center">
-            <h1 className="text-xl font-bold text-foreground mb-2">
-              시간 관리 (Time Management)
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              하루를 효율적으로 계획하고 관리하세요.
-            </p>
-          </div>
-
           {/* Weekly Goals Section */}
           <Card className="bg-card border-border mb-6">
             <CardHeader className="pb-2">
-              <h3 className="text-lg font-bold">주간 목표 작성하기</h3>
-              <p className="text-xs text-muted-foreground">
-                {currentYearMonth.replace("-", "년 ")}월 목표
-              </p>
+              <h3 className="text-lg font-bold">{currentYearMonth.replace("-", "년 ")}월 목표</h3>
             </CardHeader>
             <CardContent className="space-y-3">
               {weeklyGoals.map((weekGoal) => (
@@ -369,14 +372,13 @@ const TimeManagement = () => {
             </CardContent>
           </Card>
 
-          {/* Main Content - Two Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Panel - Add Form */}
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-4">
-                <h3 className="text-lg font-bold text-center">시간 기록 추가하기</h3>
-              </CardHeader>
-              <CardContent className="space-y-6">
+          {/* Add Form Dialog */}
+          <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-center">시간 기록 추가하기</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-6 pt-2">
                 {/* Category */}
                 <div>
                   <label className="text-sm font-medium mb-2 block">구분</label>
@@ -497,11 +499,14 @@ const TimeManagement = () => {
                 >
                   {loading ? "추가 중..." : "추가하기"}
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </DialogContent>
+          </Dialog>
 
-            {/* Right Panel - Weekly Calendar */}
-            <Card className="bg-card border-border lg:col-span-2 overflow-hidden">
+          {/* Main Content - Calendar */}
+          <div>
+            {/* Weekly Calendar */}
+            <Card className="bg-card border-border overflow-hidden">
               <CardContent className="p-4">
                 {/* Calendar Header */}
                 <div className="flex items-center gap-3 mb-4">
@@ -531,10 +536,19 @@ const TimeManagement = () => {
                     </Button>
                   </div>
                   <span className="text-lg font-bold ml-2">{formatDateRange()}</span>
+                  <div className="ml-auto">
+                    <Button
+                      size="sm"
+                      className="bg-green-200 hover:bg-green-300 text-green-900 border-0"
+                      onClick={() => setShowAddForm(true)}
+                    >
+                      시간 추가하기
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="overflow-auto max-h-[500px]">
+                <div ref={calendarScrollRef} className="overflow-auto max-h-[calc(100vh-280px)]">
                   <table className="w-full border-collapse text-sm">
                     <thead className="sticky top-0 bg-card z-10">
                       <tr>

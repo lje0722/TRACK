@@ -761,15 +761,6 @@ const Applications = () => {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="bg-background">
-                                {PROGRESS_STAGES.map((stage) => (
-                                  <DropdownMenuItem
-                                    key={stage.label}
-                                    onClick={() => handleProgressUpdate(app.id, stage.progress, stage.label)}
-                                    disabled={loading}
-                                  >
-                                    {stage.label}
-                                  </DropdownMenuItem>
-                                ))}
                                 <DropdownMenuItem
                                   onClick={() => handleReject(app.id)}
                                   className="text-destructive"

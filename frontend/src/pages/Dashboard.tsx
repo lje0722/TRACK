@@ -95,19 +95,19 @@ const Dashboard = () => {
 
   // Stats for each card (computed from store)
   const todayFocusComment = todayFocusPercentage <= 30
-    ? "...뭐하세요?"
+    ? "이러기에요..?"
     : todayFocusPercentage <= 70
       ? "할 수 있어요!"
       : "고생했어요~";
 
   const weeklyAverageComment = weeklyAveragePercentage <= 30
-    ? "음...?"
+    ? "이러기에요..?"
     : weeklyAveragePercentage <= 70
       ? "할 수 있어요!"
       : "고생했어요~";
 
   const weeklyAppComment = weeklyApplicationStats.count === 0
-    ? "...뭐하세요?"
+    ? "이러기에요..?"
     : weeklyApplicationStats.count === 1
       ? "할 수 있어요!"
       : "고생했어요~";
